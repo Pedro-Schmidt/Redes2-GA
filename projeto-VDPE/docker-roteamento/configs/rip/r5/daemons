@@ -1,0 +1,29 @@
+# Selecao dos daemons do FRRouting ativos neste roteador.
+# Configuracao vigente: protocolo RIP (ripd) sobre o gerenciador de rotas (zebra).
+# Os protocolos de roteamento (ripd, ospfd) e o algoritmo proprio nao devem
+# ser executados simultaneamente, conforme especificacao do trabalho.
+# Para alternar de protocolo, ajustar ripd/ospfd e reiniciar o container.
+
+zebra=yes
+bgpd=no
+ospfd=no
+ospf6d=no
+ripd=yes
+ripngd=no
+isisd=no
+pimd=no
+ldpd=no
+nhrpd=no
+eigrpd=no
+babeld=no
+sharpd=no
+staticd=yes
+pbrd=no
+bfdd=no
+fabricd=no
+vrrpd=no
+
+vtysh_enable=yes
+zebra_options="  -A 127.0.0.1 -s 90000000"
+ripd_options="   -A 127.0.0.1"
+staticd_options="-A 127.0.0.1"

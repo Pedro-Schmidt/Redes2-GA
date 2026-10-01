@@ -1,0 +1,99 @@
+{
+  "R1": {
+    "lan": "10.1.0.0/24",
+    "links": [
+      {
+        "neighbor": "R2",
+        "local_ip": "10.0.12.2",
+        "neighbor_ip": "10.0.12.3",
+        "cost": 1
+      },
+      {
+        "neighbor": "R3",
+        "local_ip": "10.0.13.2",
+        "neighbor_ip": "10.0.13.3",
+        "cost": 1
+      }
+    ]
+  },
+  "R2": {
+    "lan": "10.2.0.0/24",
+    "links": [
+      {
+        "neighbor": "R1",
+        "local_ip": "10.0.12.3",
+        "neighbor_ip": "10.0.12.2",
+        "cost": 1
+      },
+      {
+        "neighbor": "R4",
+        "local_ip": "10.0.24.2",
+        "neighbor_ip": "10.0.24.3",
+        "cost": 1
+      },
+      {
+        "neighbor": "R3",
+        "local_ip": "10.0.23.2",
+        "neighbor_ip": "10.0.23.3",
+        "cost": 1
+      }
+    ]
+  },
+  "R3": {
+    "lan": "10.3.0.0/24",
+    "links": [
+      {
+        "neighbor": "R1",
+        "local_ip": "10.0.13.3",
+        "neighbor_ip": "10.0.13.2",
+        "cost": 1
+      },
+      {
+        "neighbor": "R5",
+        "local_ip": "10.0.35.2",
+        "neighbor_ip": "10.0.35.3",
+        "cost": 1
+      },
+      {
+        "neighbor": "R2",
+        "local_ip": "10.0.23.3",
+        "neighbor_ip": "10.0.23.2",
+        "cost": 1
+      }
+    ]
+  },
+  "R4": {
+    "lan": "10.4.0.0/24",
+    "links": [
+      {
+        "neighbor": "R2",
+        "local_ip": "10.0.24.3",
+        "neighbor_ip": "10.0.24.2",
+        "cost": 1
+      },
+      {
+        "neighbor": "R5",
+        "local_ip": "10.0.45.2",
+        "neighbor_ip": "10.0.45.3",
+        "cost": 1
+      }
+    ]
+  },
+  "R5": {
+    "lan": "10.5.0.0/24",
+    "links": [
+      {
+        "neighbor": "R3",
+        "local_ip": "10.0.35.3",
+        "neighbor_ip": "10.0.35.2",
+        "cost": 1
+      },
+      {
+        "neighbor": "R4",
+        "local_ip": "10.0.45.3",
+        "neighbor_ip": "10.0.45.2",
+        "cost": 1
+      }
+    ]
+  }
+}

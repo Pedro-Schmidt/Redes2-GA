@@ -1,0 +1,12 @@
+# o .env e gerado por scripts/modo.* e muda a cada troca de protocolo
+.env
+
+# graficos gerados
+metricas/graficos/
+
+# lixo de sistema e editor
+node_modules/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log

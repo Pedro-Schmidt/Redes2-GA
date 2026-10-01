@@ -1,0 +1,139 @@
+# Topologia: 5 roteadores (FRRouting) + 1 host de teste em cada LAN.
+# Cada rede abaixo e uma rede Docker (bridge): ou uma LAN (/24) ou um link
+# entre dois roteadores (/29). Os links usam /29 porque o Docker reserva
+# o endereco .1 para o gateway da rede.
+
+networks:
+  lan1: {ipam: {config: [{subnet: 10.1.0.0/24, gateway: 10.1.0.254}]}}
+  lan2: {ipam: {config: [{subnet: 10.2.0.0/24, gateway: 10.2.0.254}]}}
+  lan3: {ipam: {config: [{subnet: 10.3.0.0/24, gateway: 10.3.0.254}]}}
+  lan4: {ipam: {config: [{subnet: 10.4.0.0/24, gateway: 10.4.0.254}]}}
+  lan5: {ipam: {config: [{subnet: 10.5.0.0/24, gateway: 10.5.0.254}]}}
+  link12: {ipam: {config: [{subnet: 10.0.12.0/29, gateway: 10.0.12.1}]}}
+  link13: {ipam: {config: [{subnet: 10.0.13.0/29, gateway: 10.0.13.1}]}}
+  link23: {ipam: {config: [{subnet: 10.0.23.0/29, gateway: 10.0.23.1}]}}
+  link24: {ipam: {config: [{subnet: 10.0.24.0/29, gateway: 10.0.24.1}]}}
+  link35: {ipam: {config: [{subnet: 10.0.35.0/29, gateway: 10.0.35.1}]}}
+  link45: {ipam: {config: [{subnet: 10.0.45.0/29, gateway: 10.0.45.1}]}}
+
+services:
+  # ----- Roteadores -----
+  r1:
+    image: frrouting/frr:latest
+    container_name: r1
+    hostname: r1
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/r1:/etc/frr
+    networks:
+      lan1:   {ipv4_address: 10.1.0.1}
+      link12: {ipv4_address: 10.0.12.2}
+      link13: {ipv4_address: 10.0.13.2}
+
+  r2:
+    image: frrouting/frr:latest
+    container_name: r2
+    hostname: r2
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/r2:/etc/frr
+    networks:
+      lan2:   {ipv4_address: 10.2.0.1}
+      link12: {ipv4_address: 10.0.12.3}
+      link23: {ipv4_address: 10.0.23.2}
+      link24: {ipv4_address: 10.0.24.2}
+
+  r3:
+    image: frrouting/frr:latest
+    container_name: r3
+    hostname: r3
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/r3:/etc/frr
+    networks:
+      lan3:   {ipv4_address: 10.3.0.1}
+      link13: {ipv4_address: 10.0.13.3}
+      link23: {ipv4_address: 10.0.23.3}
+      link35: {ipv4_address: 10.0.35.2}
+
+  r4:
+    image: frrouting/frr:latest
+    container_name: r4
+    hostname: r4
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/r4:/etc/frr
+    networks:
+      lan4:   {ipv4_address: 10.4.0.1}
+      link24: {ipv4_address: 10.0.24.3}
+      link45: {ipv4_address: 10.0.45.2}
+
+  r5:
+    image: frrouting/frr:latest
+    container_name: r5
+    hostname: r5
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/r5:/etc/frr
+    networks:
+      lan5:   {ipv4_address: 10.5.0.1}
+      link35: {ipv4_address: 10.0.35.3}
+      link45: {ipv4_address: 10.0.45.3}
+
+  # ----- Hosts de teste (um por LAN) -----
+  # O Docker poe como rota padrao o gateway dele (.254); o comando abaixo
+  # troca para o roteador (.1), senao o ping nao passa pelo FRR.
+  host1:
+    image: nicolaka/netshoot
+    container_name: host1
+    command: sh -c "ip route replace default via 10.1.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan1: {ipv4_address: 10.1.0.100}
+
+  host2:
+    image: nicolaka/netshoot
+    container_name: host2
+    command: sh -c "ip route replace default via 10.2.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan2: {ipv4_address: 10.2.0.100}
+
+  host3:
+    image: nicolaka/netshoot
+    container_name: host3
+    command: sh -c "ip route replace default via 10.3.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan3: {ipv4_address: 10.3.0.100}
+
+  host4:
+    image: nicolaka/netshoot
+    container_name: host4
+    command: sh -c "ip route replace default via 10.4.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan4: {ipv4_address: 10.4.0.100}
+
+  host5:
+    image: nicolaka/netshoot
+    container_name: host5
+    command: sh -c "ip route replace default via 10.5.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan5: {ipv4_address: 10.5.0.100}

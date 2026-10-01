@@ -1,0 +1,280 @@
+# =============================================================================
+# TOPOLOGIA: 5 roteadores FRR (R1..R5) + 1 host de teste em cada LAN
+# Cada roteador roda em um container baseado na imagem oficial frrouting/frr.
+# Os links entre roteadores e as LANs de acesso sao redes Docker "bridge"
+# isoladas, com sub-redes /29 (links ponto-a-ponto) e /24 (LANs).
+#
+# IMPORTANTE sobre a ordem das redes em "networks:" de cada servico:
+# o Docker Compose cria as interfaces de rede na MESMA ORDEM em que elas
+# aparecem listadas no servico (eth0 = primeira da lista, eth1 = segunda...).
+# Por essa razao, a ordem adotada abaixo foi definida deliberadamente para
+# corresponder as referencias de interface dos arquivos de configuracao do
+# FRR (zebra.conf / ripd.conf / ospfd.conf).
+#
+# SELECAO DO PROTOCOLO (um por vez, nunca simultaneos):
+#   O arquivo .env define PROTOCOLO (rip | ospf | vdpe) e COMPOSE_PROFILES.
+#   - PROTOCOLO escolhe o diretorio configs/<protocolo>/rX montado em /etc/frr.
+#   - COMPOSE_PROFILES=vdpe habilita os agentes algo1..algo5; vazio = so RIP/OSPF.
+#   Use scripts/modo.ps1 (Windows) ou scripts/modo.sh para trocar sem erro.
+# =============================================================================
+
+networks:
+  # Nas LANs, o gateway automatico do Docker fica em .254 (definido explicitamente)
+  # para nao colidir com o IP do roteador, que fica em .1.
+  lan1:
+    ipam:
+      config: [{subnet: 10.1.0.0/24, gateway: 10.1.0.254}]
+  lan2:
+    ipam:
+      config: [{subnet: 10.2.0.0/24, gateway: 10.2.0.254}]
+  lan3:
+    ipam:
+      config: [{subnet: 10.3.0.0/24, gateway: 10.3.0.254}]
+  lan4:
+    ipam:
+      config: [{subnet: 10.4.0.0/24, gateway: 10.4.0.254}]
+  lan5:
+    ipam:
+      config: [{subnet: 10.5.0.0/24, gateway: 10.5.0.254}]
+  # Links ponto-a-ponto: adotada sub-rede /29 (em vez de /30) para reservar
+  # espaco ao gateway do Docker (.1) sem conflito com os IPs dos roteadores
+  # (.2 e .3).
+  link12:
+    ipam:
+      config: [{subnet: 10.0.12.0/29, gateway: 10.0.12.1}]
+  link13:
+    ipam:
+      config: [{subnet: 10.0.13.0/29, gateway: 10.0.13.1}]
+  link23:
+    ipam:
+      config: [{subnet: 10.0.23.0/29, gateway: 10.0.23.1}]
+  link24:
+    ipam:
+      config: [{subnet: 10.0.24.0/29, gateway: 10.0.24.1}]
+  link35:
+    ipam:
+      config: [{subnet: 10.0.35.0/29, gateway: 10.0.35.1}]
+  link45:
+    ipam:
+      config: [{subnet: 10.0.45.0/29, gateway: 10.0.45.1}]
+
+services:
+
+  # ---------------------------------------------------------------------
+  # ROTEADORES
+  # ---------------------------------------------------------------------
+  r1:
+    image: frrouting/frr:latest
+    container_name: r1
+    hostname: r1
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/${PROTOCOLO:-rip}/r1:/etc/frr
+    networks:
+      lan1:    { ipv4_address: 10.1.0.1 }    # eth0
+      link12:  { ipv4_address: 10.0.12.2 }   # eth1
+      link13:  { ipv4_address: 10.0.13.2 }   # eth2
+    restart: unless-stopped
+
+  r2:
+    image: frrouting/frr:latest
+    container_name: r2
+    hostname: r2
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/${PROTOCOLO:-rip}/r2:/etc/frr
+    networks:
+      lan2:    { ipv4_address: 10.2.0.1 }    # eth0
+      link12:  { ipv4_address: 10.0.12.3 }   # eth1
+      link24:  { ipv4_address: 10.0.24.2 }   # eth2
+      link23:  { ipv4_address: 10.0.23.2 }   # eth3
+    restart: unless-stopped
+
+  r3:
+    image: frrouting/frr:latest
+    container_name: r3
+    hostname: r3
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/${PROTOCOLO:-rip}/r3:/etc/frr
+    networks:
+      lan3:    { ipv4_address: 10.3.0.1 }    # eth0
+      link13:  { ipv4_address: 10.0.13.3 }   # eth1
+      link35:  { ipv4_address: 10.0.35.2 }   # eth2
+      link23:  { ipv4_address: 10.0.23.3 }   # eth3
+    restart: unless-stopped
+
+  r4:
+    image: frrouting/frr:latest
+    container_name: r4
+    hostname: r4
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/${PROTOCOLO:-rip}/r4:/etc/frr
+    networks:
+      lan4:    { ipv4_address: 10.4.0.1 }    # eth0
+      link24:  { ipv4_address: 10.0.24.3 }   # eth1
+      link45:  { ipv4_address: 10.0.45.2 }   # eth2
+    restart: unless-stopped
+
+  r5:
+    image: frrouting/frr:latest
+    container_name: r5
+    hostname: r5
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.rp_filter: 0
+    volumes:
+      - ./configs/${PROTOCOLO:-rip}/r5:/etc/frr
+    networks:
+      lan5:    { ipv4_address: 10.5.0.1 }    # eth0
+      link35:  { ipv4_address: 10.0.35.3 }   # eth1
+      link45:  { ipv4_address: 10.0.45.3 }   # eth2
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # HOSTS DE TESTE (um por LAN) - simulam um PC final em cada rede de acesso
+  # Usados para o teste de ponta-a-ponta (ping host1 -> host5, etc.)
+  # ---------------------------------------------------------------------
+  host1:
+    image: nicolaka/netshoot
+    container_name: host1
+    command: sh -c "ip route replace default via 10.1.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan1: { ipv4_address: 10.1.0.100 }
+    depends_on: [r1]
+
+  host2:
+    image: nicolaka/netshoot
+    container_name: host2
+    command: sh -c "ip route replace default via 10.2.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan2: { ipv4_address: 10.2.0.100 }
+    depends_on: [r2]
+
+  host3:
+    image: nicolaka/netshoot
+    container_name: host3
+    command: sh -c "ip route replace default via 10.3.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan3: { ipv4_address: 10.3.0.100 }
+    depends_on: [r3]
+
+  host4:
+    image: nicolaka/netshoot
+    container_name: host4
+    command: sh -c "ip route replace default via 10.4.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan4: { ipv4_address: 10.4.0.100 }
+    depends_on: [r4]
+
+  host5:
+    image: nicolaka/netshoot
+    container_name: host5
+    command: sh -c "ip route replace default via 10.5.0.1 && sleep infinity"
+    cap_add: [NET_ADMIN]
+    networks:
+      lan5: { ipv4_address: 10.5.0.100 }
+    depends_on: [r5]
+
+  # ---------------------------------------------------------------------
+  # AGENTES DO ALGORITMO PROPRIO (VDPE) - um sidecar por roteador
+  # ---------------------------------------------------------------------
+  # Cada agente compartilha o namespace de rede do roteador correspondente
+  # (network_mode: service:rX): enxerga as mesmas interfaces e a mesma tabela
+  # de rotas, e instala rotas nela com "ip route", como o ripd/ospfd fariam.
+  #
+  # Pertencem ao perfil "vdpe": so sobem quando COMPOSE_PROFILES=vdpe (definido
+  # no .env pelo scripts/modo.*). Isso garante que nunca rodem junto com
+  # RIP/OSPF, conforme exige o enunciado do trabalho.
+  #
+  # O comando NAO usa mais "apk add ... >/dev/null 2>&1 &&": se o download
+  # falhasse (sem internet), o container encerrava em silencio e o servico
+  # "sumia". A imagem node:alpine ja traz "ip" (busybox); o apk so e usado
+  # como reserva, e qualquer erro aparece em "docker logs algoX".
+  algo1:
+    image: node:20-alpine
+    container_name: algo1
+    network_mode: "service:r1"
+    cap_add: [NET_ADMIN]
+    volumes:
+      - ./algoritmo-proprio:/app
+    working_dir: /app
+    command: >
+      sh -c "command -v ip >/dev/null || apk add --no-cache iproute2;
+      exec node vdpe_agent.js --router R1 --topology /app/topologia_docker.json"
+    depends_on: [r1]
+    profiles: ["vdpe"]
+
+  algo2:
+    image: node:20-alpine
+    container_name: algo2
+    network_mode: "service:r2"
+    cap_add: [NET_ADMIN]
+    volumes:
+      - ./algoritmo-proprio:/app
+    working_dir: /app
+    command: >
+      sh -c "command -v ip >/dev/null || apk add --no-cache iproute2;
+      exec node vdpe_agent.js --router R2 --topology /app/topologia_docker.json"
+    depends_on: [r2]
+    profiles: ["vdpe"]
+
+  algo3:
+    image: node:20-alpine
+    container_name: algo3
+    network_mode: "service:r3"
+    cap_add: [NET_ADMIN]
+    volumes:
+      - ./algoritmo-proprio:/app
+    working_dir: /app
+    command: >
+      sh -c "command -v ip >/dev/null || apk add --no-cache iproute2;
+      exec node vdpe_agent.js --router R3 --topology /app/topologia_docker.json"
+    depends_on: [r3]
+    profiles: ["vdpe"]
+
+  algo4:
+    image: node:20-alpine
+    container_name: algo4
+    network_mode: "service:r4"
+    cap_add: [NET_ADMIN]
+    volumes:
+      - ./algoritmo-proprio:/app
+    working_dir: /app
+    command: >
+      sh -c "command -v ip >/dev/null || apk add --no-cache iproute2;
+      exec node vdpe_agent.js --router R4 --topology /app/topologia_docker.json"
+    depends_on: [r4]
+    profiles: ["vdpe"]
+
+  algo5:
+    image: node:20-alpine
+    container_name: algo5
+    network_mode: "service:r5"
+    cap_add: [NET_ADMIN]
+    volumes:
+      - ./algoritmo-proprio:/app
+    working_dir: /app
+    command: >
+      sh -c "command -v ip >/dev/null || apk add --no-cache iproute2;
+      exec node vdpe_agent.js --router R5 --topology /app/topologia_docker.json"
+    depends_on: [r5]
+    profiles: ["vdpe"]
